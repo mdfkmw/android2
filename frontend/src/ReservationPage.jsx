@@ -247,12 +247,77 @@ export default function ReservationPage({ userRole, user }) {
     const digits = String(incomingCall.digits || incomingCall.phone || '').replace(/\D/g, '');
     const targetValue = incomingCall.phone || digits;
     if (!targetValue) return;
-    setToastType('info');
-    setToastMessage(
-      `Ultimul apel: ${targetValue}. Deschide formularul pasagerului și apasă iconița 📞 din câmpul „Telefon” ca să îl copiezi.`
-    );
-    const timeout = setTimeout(() => setToastMessage(''), 2500);
-    return () => clearTimeout(timeout);
+    let ignore = false;
+    let timeout;
+
+    const fetchDetailsAndToast = async () => {
+      let passengerName = '';
+      let lastSegment = null;
+      let noShowsCount = 0;
+
+      try {
+        const historyRes = await fetch(`/api/people/history?phone=${encodeURIComponent(digits)}`, {
+          credentials: 'include',
+        });
+        if (historyRes.ok) {
+          const historyData = await historyRes.json();
+          if (historyData?.exists) {
+            passengerName = historyData.name || '';
+            const latestReservation = Array.isArray(historyData.history) ? historyData.history[0] : null;
+            const boardName = latestReservation?.board_name || latestReservation?.board_at || '';
+            const exitName = latestReservation?.exit_name || latestReservation?.exit_at || '';
+            if (boardName && exitName) {
+              lastSegment = { board: boardName, exit: exitName };
+            }
+          }
+        }
+      } catch (err) {
+        // ignorăm erorile pentru toast
+      }
+
+      try {
+        const blacklistRes = await fetch(`/api/blacklist/check?phone=${encodeURIComponent(digits)}`, {
+          credentials: 'include',
+        });
+        if (blacklistRes.ok) {
+          const blacklistData = await blacklistRes.json();
+          const aliasCount = Array.isArray(blacklistData?.no_shows)
+            ? blacklistData.no_shows.length
+            : Array.isArray(blacklistData?.noShows)
+            ? blacklistData.noShows.length
+            : 0;
+          const computedCount = Number(
+            blacklistData?.no_shows_count ?? blacklistData?.noShowsCount ?? aliasCount
+          );
+          if (Number.isFinite(computedCount)) {
+            noShowsCount = computedCount;
+          }
+        }
+      } catch (err) {
+        // ignorăm erorile pentru toast
+      }
+
+      if (ignore) return;
+
+      let message = `Ultimul apel: ${targetValue}.`;
+      if (passengerName) {
+        const segmentText = lastSegment
+          ? ` Ultimul segment rezervat a fost intre ${lastSegment.board} si ${lastSegment.exit}.`
+          : '';
+        const warningText = noShowsCount > 0 ? ` Atentie, are ${noShowsCount} neprezentari!` : '';
+        message = `Ultimul apel: ${passengerName} - ${targetValue}.${segmentText}${warningText}`;
+      }
+
+      setToastType('info');
+      setToastMessage(message);
+      timeout = setTimeout(() => setToastMessage(''), 2500);
+    };
+
+    fetchDetailsAndToast();
+    return () => {
+      ignore = true;
+      if (timeout) clearTimeout(timeout);
+    };
   }, [incomingCall, setToastMessage, setToastType]);
 
   const handleApplyIncomingCallToSeat = useCallback((seatId) => {
