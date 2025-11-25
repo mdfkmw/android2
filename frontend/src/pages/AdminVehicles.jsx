@@ -138,7 +138,7 @@ export default function AdminVehicles() {
 
     // efecte
     useEffect(() => { loadOperators(); }, []);
-    useEffect(() => { loadVehicles(); /* eslint-disable-next-line */ }, [operatorFilter, typeFilter]);
+    useEffect(() => { loadVehicles(); }, [operatorFilter, typeFilter]);
 
     // API
     async function loadOperators() {

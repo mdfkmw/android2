@@ -12,7 +12,10 @@ export default function AdminCallLog() {
   const [entries, setEntries] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [limit, setLimit] = useState(100);
+  const [limit, setLimit] = useState(() => {
+    const stored = Number(localStorage.getItem('adminCallLogLimit'));
+    return Number.isFinite(stored) && stored > 0 ? stored : 100;
+  });
   const [lastUpdatedAt, setLastUpdatedAt] = useState(null);
 
   const loadData = useCallback(async () => {
@@ -39,6 +42,10 @@ export default function AdminCallLog() {
     loadData();
   }, [loadData]);
 
+  useEffect(() => {
+    localStorage.setItem('adminCallLogLimit', String(limit));
+  }, [limit]);
+
   const emptyState = !loading && !entries.length && !error;
 
   const rows = useMemo(() => entries.map((entry) => ({
@@ -51,16 +58,19 @@ export default function AdminCallLog() {
 
   return (
     <div className="p-6 space-y-6">
-      <div className="flex flex-wrap items-center gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold">📞 Call Log administrare</h1>
-          <p className="text-sm text-gray-600">Vezi ultimele apeluri primite și statusul lor (fără durata apelului).</p>
+      <div className="flex flex-wrap items-center gap-4 border-b border-gray-200 pb-3">
+        <div className="flex items-center gap-3">
+          <div className="text-3xl leading-none">📞</div>
+          <div>
+            <h1 className="text-2xl font-semibold text-gray-900">Call Log administrare</h1>
+            <p className="text-sm text-gray-600">Vezi ultimele apeluri primite și statusul lor (fără durata apelului).</p>
+          </div>
         </div>
-        <div className="ml-auto flex flex-wrap gap-3 items-center">
-          <label className="text-sm text-gray-700 flex items-center gap-2">
+        <div className="ml-auto flex flex-wrap gap-3 items-center text-sm">
+          <label className="text-gray-700 flex items-center gap-2">
             Afișează
             <select
-              className="border rounded px-2 py-1 text-sm"
+              className="border rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               value={limit}
               onChange={(event) => setLimit(Number(event.target.value) || 50)}
             >
@@ -75,7 +85,7 @@ export default function AdminCallLog() {
           <button
             type="button"
             onClick={loadData}
-            className="px-3 py-1.5 text-sm font-medium bg-blue-600 text-white rounded hover:bg-blue-700"
+            className="px-3 py-1.5 text-sm font-medium bg-blue-600 text-white rounded hover:bg-blue-700 shadow-sm"
           >
             Reîncarcă
           </button>
@@ -104,29 +114,29 @@ export default function AdminCallLog() {
         </div>
       )}
 
-          {!loading && !!rows.length && (
-            <div className="overflow-x-auto">
-              <table className="min-w-full text-sm border border-gray-200">
-                <thead className="bg-gray-100 text-left">
-                  <tr>
-                    <th className="p-2 border-b border-gray-200">Data</th>
-                    <th className="p-2 border-b border-gray-200">Ora (cu secunde)</th>
-                    <th className="p-2 border-b border-gray-200">Telefon</th>
-                    <th className="p-2 border-b border-gray-200">Nume asociat</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {rows.map((row) => (
-                    <tr key={row.id} className="odd:bg-white even:bg-gray-50">
-                      <td className="p-2 align-top whitespace-nowrap">{row.date}</td>
-                      <td className="p-2 align-top whitespace-nowrap font-mono">{row.time}</td>
-                      <td className="p-2 align-top font-mono text-base">{row.phone}</td>
-                      <td className="p-2 align-top text-gray-700">{row.name}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+      {!loading && !!rows.length && (
+        <div className="overflow-x-auto">
+          <table className="min-w-full text-sm border border-gray-200 rounded-md overflow-hidden shadow-sm">
+            <thead className="bg-gray-100 text-left text-gray-700">
+              <tr>
+                <th className="px-3 py-2 border-b border-gray-200">Data</th>
+                <th className="px-3 py-2 border-b border-gray-200">Ora (cu secunde)</th>
+                <th className="px-3 py-2 border-b border-gray-200">Telefon</th>
+                <th className="px-3 py-2 border-b border-gray-200">Nume asociat</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((row) => (
+                <tr key={row.id} className="odd:bg-white even:bg-gray-50">
+                  <td className="px-3 py-1.5 align-top whitespace-nowrap text-gray-900">{row.date}</td>
+                  <td className="px-3 py-1.5 align-top whitespace-nowrap font-mono text-gray-900">{row.time}</td>
+                  <td className="px-3 py-1.5 align-top font-mono text-base text-gray-900">{row.phone}</td>
+                  <td className="px-3 py-1.5 align-top text-gray-700">{row.name}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
     </div>
   );
