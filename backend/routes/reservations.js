@@ -4,6 +4,8 @@ const db = require('../db');
 const { randomUUID } = require('crypto');
 const router = express.Router();
 
+const { logPersonNameChange } = require('./audit');
+
 const { requireAuth, requireRole } = require('../middleware/auth');
 const { normalizeDirection, isReturnDirection, ensureDirection } = require('../utils/direction');
 const { getOnlineSettings, buildDateTimeFromDateAndTime } = require('../utils/onlineSettings');
@@ -65,8 +67,9 @@ const sanitizePhone = (raw) => {
  *      - altfel creăm persoană nouă
  * Întoarce { personId, changed } unde changed=true dacă s-a făcut UPDATE/realocare.
  */
-async function upsertPersonForReservation({ name, phone, currentPersonId }) {
+async function upsertPersonForReservation({ name, phone, currentPersonId, actorId }) {
   const cleanPhone = (phone || '').replace(/\D/g, '') || null;
+  const normalizedName = (name || '').trim();
 
   // 1) dacă avem deja persoana curentă
   if (currentPersonId) {
@@ -79,11 +82,19 @@ async function upsertPersonForReservation({ name, phone, currentPersonId }) {
     } else {
       const row = cur.rows[0];
       const curPhone = row.phone ? String(row.phone).replace(/\D/g, '') : null;
+      const curName = (row.name || '').trim();
 
       // a) dacă nu primim telefon nou -> eventual doar numele
       if (!cleanPhone) {
-        if (name && name.trim() && name.trim() !== (row.name || '').trim()) {
-          await db.query(`UPDATE people SET name=? WHERE id=?`, [name.trim(), row.id]);
+        if (normalizedName && normalizedName !== curName) {
+          await db.query(`UPDATE people SET name=? WHERE id=?`, [normalizedName, row.id]);
+          await logPersonNameChange({
+            personId: row.id,
+            phone: row.phone,
+            beforeName: row.name,
+            afterName: normalizedName,
+            actorId,
+          });
           return { personId: row.id, changed: true };
         }
         return { personId: row.id, changed: false };
@@ -93,14 +104,30 @@ async function upsertPersonForReservation({ name, phone, currentPersonId }) {
       if (!curPhone) {
         // setăm telefonul pe aceeași persoană
         await db.query(`UPDATE people SET phone=?, name=COALESCE(NULLIF(?, ''), name) WHERE id=?`,
-          [cleanPhone, (name || '').trim(), row.id]);
+          [cleanPhone, normalizedName, row.id]);
+        if (normalizedName && normalizedName !== curName) {
+          await logPersonNameChange({
+            personId: row.id,
+            phone: cleanPhone,
+            beforeName: row.name,
+            afterName: normalizedName,
+            actorId,
+          });
+        }
         return { personId: row.id, changed: true };
       }
 
       if (curPhone === cleanPhone) {
         // doar numele eventual
-        if (name && name.trim() && name.trim() !== (row.name || '').trim()) {
-          await db.query(`UPDATE people SET name=? WHERE id=?`, [name.trim(), row.id]);
+        if (normalizedName && normalizedName !== curName) {
+          await db.query(`UPDATE people SET name=? WHERE id=?`, [normalizedName, row.id]);
+          await logPersonNameChange({
+            personId: row.id,
+            phone: cleanPhone,
+            beforeName: row.name,
+            afterName: normalizedName,
+            actorId,
+          });
           return { personId: row.id, changed: true };
         }
         return { personId: row.id, changed: false };
@@ -111,26 +138,52 @@ async function upsertPersonForReservation({ name, phone, currentPersonId }) {
       if (other.rows.length) {
         // realocăm rezervarea pe acea persoană
         const newId = other.rows[0].id;
+        const otherName = (other.rows[0].name || '').trim();
         // putem ajusta numele acelei persoane dacă am primit unul non-gol
-        if (name && name.trim()) {
-          await db.query(`UPDATE people SET name=COALESCE(NULLIF(?, ''), name) WHERE id=?`, [name.trim(), newId]);
+        if (normalizedName && normalizedName !== otherName) {
+          await db.query(`UPDATE people SET name=COALESCE(NULLIF(?, ''), name) WHERE id=?`, [normalizedName, newId]);
+          await logPersonNameChange({
+            personId: newId,
+            phone: cleanPhone,
+            beforeName: other.rows[0].name,
+            afterName: normalizedName,
+            actorId,
+          });
         }
         return { personId: newId, changed: true };
       }
       // nu există altcineva cu telefonul -> îl mutăm pe persoana curentă
       await db.query(`UPDATE people SET phone=?, name=COALESCE(NULLIF(?, ''), name) WHERE id=?`,
-        [cleanPhone, (name || '').trim(), row.id]);
+        [cleanPhone, normalizedName, row.id]);
+      if (normalizedName && normalizedName !== curName) {
+        await logPersonNameChange({
+          personId: row.id,
+          phone: cleanPhone,
+          beforeName: row.name,
+          afterName: normalizedName,
+          actorId,
+        });
+      }
       return { personId: row.id, changed: true };
     }
   }
 
   // 2) nu avem currentPersonId
   if (cleanPhone) {
-    const found = await db.query(`SELECT id FROM people WHERE phone = ?`, [cleanPhone]);
+    const found = await db.query(`SELECT id, name, phone FROM people WHERE phone = ?`, [cleanPhone]);
     if (found.rows.length) {
       const pid = found.rows[0].id;
-      if (name && name.trim()) {
-        await db.query(`UPDATE people SET name=COALESCE(NULLIF(?, ''), name) WHERE id=?`, [name.trim(), pid]);
+      const prevName = (found.rows[0].name || '').trim();
+      if (normalizedName && normalizedName !== prevName) {
+        await db.query(`UPDATE people SET name=COALESCE(NULLIF(?, ''), name) WHERE id=?`, [normalizedName, pid]);
+        await logPersonNameChange({
+          personId: pid,
+          phone: cleanPhone,
+          beforeName: found.rows[0].name,
+          afterName: normalizedName,
+          actorId,
+        });
+        return { personId: pid, changed: true };
       }
       return { personId: pid, changed: false };
     }
@@ -800,7 +853,8 @@ router.post('/', async (req, res) => {
       const { personId: resolvedPersonId } = await upsertPersonForReservation({
         name,
         phone,
-        currentPersonId
+        currentPersonId,
+        actorId: Number(req.user?.id) || null,
       });
       const person_id = resolvedPersonId || currentPersonId || null;
 

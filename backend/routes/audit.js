@@ -46,6 +46,22 @@ async function writeAudit({
   }
 }
 
+async function logPersonNameChange({ personId, phone, beforeName, afterName, actorId = null }) {
+  const beforeNormalized = (beforeName || '').trim();
+  const afterNormalized = (afterName || '').trim();
+  if (beforeNormalized === afterNormalized) return;
+
+  await writeAudit({
+    actorId: Number(actorId) || null,
+    entity: 'person',
+    entityId: personId || null,
+    action: 'person.name.update',
+    note: phone ? `phone=${phone}` : null,
+    before: { name: beforeName || null, phone: phone || null },
+    after: { name: afterName || null, phone: phone || null },
+  });
+}
+
 // acces permis doar admin / operator_admin
 function ensureAdmin(req, res, next) {
   const role = req.user?.role;
@@ -70,12 +86,13 @@ router.get('/audit-logs', ensureAdmin, async (req, res) => {
     const { from = '', to = '', action = '', reservation_id = '', person_id = '' } = req.query || {};
     const params = [];
     let where = `
-      (
+      ( 
         al.action LIKE 'reservation.%'
         OR al.action LIKE 'payment.%'
         OR al.action LIKE 'person.blacklist.%'
         OR al.action = 'person.noshow.add'
         OR al.action = 'person.noshow.remove'
+        OR al.action LIKE 'person.name.%'
         OR al.action LIKE 'vehicle.%'
         OR al.action LIKE 'trip.vehicle.%'
       )
@@ -201,5 +218,6 @@ router.get('/audit-logs', ensureAdmin, async (req, res) => {
 });
 
 router.writeAudit = writeAudit;
+router.logPersonNameChange = logPersonNameChange;
 
 module.exports = router;

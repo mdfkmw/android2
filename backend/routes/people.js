@@ -4,6 +4,7 @@ const db = require('../db');
 
 
 const { requireAuth, requireRole } = require('../middleware/auth');
+const { logPersonNameChange } = require('./audit');
 
 // ✅ Acces: admin, operator_admin, agent (NU driver)
 router.use(requireAuth, requireRole('admin', 'operator_admin', 'agent'));
@@ -422,6 +423,14 @@ router.put('/:id', async (req, res) => {
   const notes = notesRaw; // permite șir gol
   try {
     if (!id) return res.status(400).json({ error: 'id lipsă' });
+    const beforeRes = await db.query(
+      `SELECT id, name, phone, COALESCE(notes,'') AS notes FROM people WHERE id=? LIMIT 1`,
+      [id]
+    );
+    const before = (beforeRes.rows || beforeRes)[0] || null;
+    if (!before) {
+      return res.status(404).json({ error: 'persoană inexistentă' });
+    }
     // facem update explicit (setăm inclusiv NULL dacă e cazul)
     await db.query(
       `UPDATE people
@@ -434,8 +443,15 @@ router.put('/:id', async (req, res) => {
     // întoarcem valorile actualizate
     const row = await db.query(`SELECT id, name, phone, COALESCE(notes,'') AS notes FROM people WHERE id=? LIMIT 1`, [id]);
     const person = (row.rows || row)[0] || null;
+    await logPersonNameChange({
+      personId: person?.id,
+      phone: person?.phone || before.phone,
+      beforeName: before.name,
+      afterName: person?.name,
+      actorId: Number(req.user?.id) || null,
+    });
     res.json({ success: true, person });
- } catch (err) {
+  } catch (err) {
     // conflict de unicitate (dacă ai index unic pe telefon)
     if (err?.code === 'ER_DUP_ENTRY') {
       return res.status(409).json({ error: 'acest număr de telefon este deja folosit de alt pasager' });
