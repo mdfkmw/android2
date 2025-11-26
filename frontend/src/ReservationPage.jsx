@@ -70,9 +70,12 @@ export default function ReservationPage({ userRole, user }) {
   const [showWideSeatControls, setShowWideSeatControls] = useState(false);
   const [isExportingSeatMap, setIsExportingSeatMap] = useState(false);
   const [isTimelineModalOpen, setIsTimelineModalOpen] = useState(false);
+  const [isTextOptionsOpen, setIsTextOptionsOpen] = useState(false);
+  const [textOptions, setTextOptions] = useState({ size: '14', color: '#111827', alignment: 'left' });
   const selectedSeatsRef = useRef([]);
   const previousSelectionKeyRef = useRef(null);
   const seatMapRef = useRef(null);
+  const textOptionsRef = useRef(null);
   useEffect(() => {
     let ignore = false;
     const loadSettings = async () => {
@@ -719,6 +722,20 @@ export default function ReservationPage({ userRole, user }) {
       setIsWideView(false);
     }
   }, [seatViewMode, isWideView]);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (isTextOptionsOpen && textOptionsRef.current && !textOptionsRef.current.contains(event.target)) {
+        setIsTextOptionsOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isTextOptionsOpen]);
 
   const adjustWideSeatSize = useCallback((dimension, delta) => {
     setWideSeatSize((prev) => {
@@ -4249,14 +4266,18 @@ export default function ReservationPage({ userRole, user }) {
                           return nextMode;
                         });
                       }}
-                      className="px-3 py-1 rounded-full text-xs font-semibold border transition-colors bg-blue-600 text-white border-blue-600"
+                      className={`px-3 py-1 rounded-full text-xs font-semibold border transition-colors ${
+                        seatViewMode === 'timeline'
+                          ? 'bg-gray-200 text-gray-900 border-gray-300'
+                          : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-100'
+                      }`}
                       title={
                         seatViewMode === 'timeline'
                           ? 'Vezi rezervările pe axa stațiilor'
                           : 'Vezi diagrama clasică a locurilor'
                       }
                     >
-                      {seatViewMode === 'timeline' ? 'Timeline' : 'Diagramă'}
+                      Timeline
                     </button>
                     <button
                       type="button"
@@ -4267,8 +4288,8 @@ export default function ReservationPage({ userRole, user }) {
                       disabled={!isGridViewActive}
                       className={`px-3 py-1 rounded-full text-xs font-semibold border transition-colors ${
                         isWideView
-                          ? 'bg-blue-600 text-white border-blue-600'
-                          : 'bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200'
+                          ? 'bg-gray-200 text-gray-900 border-gray-300'
+                          : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-100'
                       } ${!isGridViewActive ? 'opacity-60 cursor-not-allowed' : ''}`}
                       title="Mărește lățimea locurilor din diagramă pentru a vedea toate detaliile"
                     >
@@ -4290,6 +4311,77 @@ export default function ReservationPage({ userRole, user }) {
                     )}
                   </div>
                   <div className="inline-flex items-center gap-2 flex-wrap ml-auto">
+                    <div className="relative" ref={textOptionsRef}>
+                      <button
+                        type="button"
+                        onClick={() => setIsTextOptionsOpen((prev) => !prev)}
+                        className="px-3 py-1 rounded-full text-xs font-semibold border bg-white text-gray-700 border-gray-300 hover:bg-gray-100 transition-colors"
+                        title="Setează stilul textelor afișate pe diagramă"
+                      >
+                        Text
+                      </button>
+                      {isTextOptionsOpen && (
+                        <div className="absolute right-0 mt-2 w-64 bg-white border border-gray-200 shadow-lg rounded-lg p-3 z-20">
+                          <div className="text-xs font-semibold text-gray-700 mb-2 uppercase tracking-wide">
+                            Setări text
+                          </div>
+                          <div className="flex flex-col gap-2 text-xs text-gray-700">
+                            <label className="flex items-center justify-between gap-2">
+                              <span className="font-semibold">Dimensiune</span>
+                              <select
+                                className="flex-1 border border-gray-300 rounded px-2 py-1 text-gray-700"
+                                value={textOptions.size}
+                                onChange={(e) =>
+                                  setTextOptions((prev) => ({ ...prev, size: e.target.value }))
+                                }
+                              >
+                                <option value="12">12 px</option>
+                                <option value="14">14 px</option>
+                                <option value="16">16 px</option>
+                                <option value="18">18 px</option>
+                                <option value="20">20 px</option>
+                              </select>
+                            </label>
+                            <label className="flex items-center justify-between gap-2">
+                              <span className="font-semibold">Culoare</span>
+                              <input
+                                type="color"
+                                className="border border-gray-300 rounded w-20 h-8 p-1"
+                                value={textOptions.color}
+                                onChange={(e) =>
+                                  setTextOptions((prev) => ({ ...prev, color: e.target.value }))
+                                }
+                              />
+                            </label>
+                            <div className="flex flex-col gap-2">
+                              <span className="font-semibold">Așezare</span>
+                              <div className="grid grid-cols-3 gap-2">
+                                {[
+                                  { value: 'left', label: 'Stânga' },
+                                  { value: 'center', label: 'Centru' },
+                                  { value: 'right', label: 'Dreapta' },
+                                ].map((option) => (
+                                  <button
+                                    key={option.value}
+                                    type="button"
+                                    onClick={() =>
+                                      setTextOptions((prev) => ({ ...prev, alignment: option.value }))
+                                    }
+                                    className={`px-2 py-1 rounded border text-[11px] font-semibold transition-colors ${
+                                      textOptions.alignment === option.value
+                                        ? 'bg-gray-200 text-gray-900 border-gray-300'
+                                        : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-100'
+                                    }`}
+                                  >
+                                    {option.label}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
                     <label className="inline-flex items-center gap-2 text-xs font-semibold text-gray-700">
                       <input
                         type="checkbox"
@@ -4297,7 +4389,7 @@ export default function ReservationPage({ userRole, user }) {
                         checked={showSeatObservations}
                         onChange={(e) => setShowSeatObservations(e.target.checked)}
                       />
-                      Observații pe diagramă
+                      Obs.
                     </label>
                     <button
                       type="button"
