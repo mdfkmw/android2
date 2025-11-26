@@ -58,7 +58,7 @@ export default function BlacklistAdmin() {
     }
   };
 
-  const handleShowHistory = async (personId, displayName) => {
+ const handleShowHistory = async (personId, displayName) => {
     try {
       const res = await axios.get(`/api/people/${personId}/report`);
       setHistoryData(res.data.noShows || []);
@@ -78,7 +78,7 @@ export default function BlacklistAdmin() {
     return name.includes(lowerFilter) || phone.includes(normalizedPhoneFilter);
   });
 
-  return (
+ return (
     <>
       <div className="p-4 max-w-4xl">
         <h1 className="text-2xl font-semibold mb-4">Administrare Blacklist</h1>
@@ -182,22 +182,32 @@ export default function BlacklistAdmin() {
               <div>Nu există înregistrări.</div>
             ) : (
               <div className="space-y-1">
- {historyData.map((ns, idx) => {
-   const date = ns.date || ns.created_at || ns.created_at_date || '-';
-   const time = ns.time || ns.hour || ns.trip_time || '';
-   const route = ns.route_name || ns.route || ns.routeName || '-';
-   const seatsText = Array.isArray(ns.seats)
-     ? ns.seats.join(', ')
-     : (ns.seats ?? ns.seat_numbers ?? ns.seat ?? ns.seat_ids ?? '-');
-   return (
-     <div key={idx} className="text-sm whitespace-nowrap">
-       {date} {time} – {route}
-       <span className="font-semibold">
-         {' '}| Locuri: {seatsText}
-       </span>
-     </div>
-   );
- })}
+{historyData.map((ns, idx) => {
+  const date = ns.date || ns.created_at || ns.created_at_date || '-';
+  const time = ns.time || ns.hour || ns.trip_time || '';
+  const route = ns.route_name || ns.route || ns.routeName || '-';
+  const boardName = ns.board_name || ns.board_at || '';
+  const exitName = ns.exit_name || ns.exit_at || '';
+  const segment = boardName || exitName ? `${boardName || '?'} → ${exitName || '?'}` : '';
+  const seatLabel = ns.seat_label
+    || (Array.isArray(ns.seats) ? ns.seats.join(', ') : '')
+    || ns.seats
+    || ns.seat_numbers
+    || ns.seat
+    || ns.seat_ids
+    || '';
+  return (
+    <div key={idx} className="text-sm whitespace-nowrap">
+      {date} {time} – {route}
+      {segment && (
+        <span className="ml-1">• {segment}</span>
+      )}
+      <span className="font-semibold">
+        {' '}| Loc: {seatLabel || 'n/a'}
+      </span>
+    </div>
+  );
+})}
 
               </div>
             )}
