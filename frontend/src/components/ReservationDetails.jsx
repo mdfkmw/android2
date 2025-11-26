@@ -38,7 +38,8 @@ export default function ReservationDetails() {
           <div>Cursă: <b>{r.trip_date}</b> {r.trip_time} — {r.route_name}</div>
           <div>Segment: <b>{r.board_name} → {r.exit_name}</b></div>
           <div>Loc: <b>{r.seat_label}</b></div>
-          <div>Creată de: <b>{r.created_by ?? '—'}</b></div>
+          {r.passenger_name ? <div>Nume călător: <b>{r.passenger_name}</b></div> : null}
+          <div>Creată de: <b>{r.created_by_name || r.created_by || '—'}</b></div>
           <div>Creată la: <b>{r.reservation_time ?? '—'}</b></div>
           {r.observations ? <div>Observații: {r.observations}</div> : null}
         </div>
@@ -47,14 +48,14 @@ export default function ReservationDetails() {
           <h2 className="font-medium mb-2">Preț & Plăți</h2>
           <div>Preț net: <b>{p?.price_value ?? '—'}</b></div>
           <div>Channel: <b>{p?.booking_channel ?? '—'}</b></div>
-          <div>Operator: <b>{p?.employee_id ?? '—'}</b></div>
+          <div>Operator: <b>{r.operator_name || r.operator_id || '—'}</b></div>
           <div className="mt-2">
             <div className="font-medium">Plăți</div>
             {payments.length === 0 ? <div>—</div> : (
               <ul className="list-disc pl-5">
                 {payments.map(pay => (
                   <li key={pay.id}>
-                    {pay.ts}: {pay.amount} RON — {pay.payment_method} {pay.transaction_id ? `(txn ${pay.transaction_id})` : ''} {pay.collected_by ? `| casier ${pay.collected_by}` : ''}
+                    {pay.ts}: {pay.amount} RON — {pay.payment_method} {pay.transaction_id ? `(txn ${pay.transaction_id})` : ''}{pay.collected_by ? ` | casier ${pay.collected_by_name || pay.collected_by}` : ''}{pay.status === 'paid' && (r.created_by_name || r.created_by) ? ` | Creat de: ${r.created_by_name || r.created_by}` : ''}
                   </li>
                 ))}
               </ul>
@@ -82,7 +83,7 @@ export default function ReservationDetails() {
                 <tr key={ev.event_id || ev.id}>
                   <td className="border p-2">{ev.at}</td>
                   <td className="border p-2">{ev.action}</td>
-                  <td className="border p-2">{ev.actor_id}</td>
+                  <td className="border p-2">{ev.actor_name || ev.actor_id}</td>
                   <td className="border p-2">{ev.amount ?? ''}</td>
                   <td className="border p-2">{ev.payment_method ?? ''}</td>
                   <td className="border p-2">{ev.channel ?? ''}</td>
