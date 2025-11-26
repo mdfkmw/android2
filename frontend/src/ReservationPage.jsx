@@ -690,6 +690,13 @@ export default function ReservationPage({ userRole, user }) {
   const [wideSeatSize, setWideSeatSize] = useState({ width: 260, height: 150 });
   // 📝 Afișare observații direct pe diagramă
   const [showSeatObservations, setShowSeatObservations] = useState(false);
+  const [diagramTextStyle, setDiagramTextStyle] = useState({
+    fontFamily: 'Inter, sans-serif',
+    fontSize: 10,
+    color: '#f3f4f6',
+    textAlign: 'right',
+  });
+  const [isTextSettingsOpen, setIsTextSettingsOpen] = useState(false);
   // 🚐 Control pentru afișarea popup-ului de alegere vehicul
   const [showVehiclePopup, setShowVehiclePopup] = useState(false);
   // 🚌 Lista vehiculelor disponibile încărcată din backend
@@ -720,6 +727,19 @@ export default function ReservationPage({ userRole, user }) {
     }
   }, [seatViewMode, isWideView]);
 
+  useEffect(() => {
+    if (!isTextSettingsOpen) return undefined;
+
+    const handleClickOutside = (event) => {
+      if (textSettingsRef.current && !textSettingsRef.current.contains(event.target)) {
+        setIsTextSettingsOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isTextSettingsOpen]);
+
   const adjustWideSeatSize = useCallback((dimension, delta) => {
     setWideSeatSize((prev) => {
       const limits = dimension === 'width'
@@ -734,6 +754,7 @@ export default function ReservationPage({ userRole, user }) {
   const [popupPassenger, setPopupPassenger] = useState(null);
   const [popupSeat, setPopupSeat] = useState(null);
   const [popupPosition, setPopupPosition] = useState(null);
+  const textSettingsRef = useRef(null);
 
 
 
@@ -4249,14 +4270,18 @@ export default function ReservationPage({ userRole, user }) {
                           return nextMode;
                         });
                       }}
-                      className="px-3 py-1 rounded-full text-xs font-semibold border transition-colors bg-blue-600 text-white border-blue-600"
+                      className={`px-3 py-1 rounded-full text-xs font-semibold border transition-colors ${
+                        seatViewMode === 'timeline'
+                          ? 'bg-gray-300 text-gray-900 border-gray-400'
+                          : 'bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200'
+                      }`}
                       title={
                         seatViewMode === 'timeline'
                           ? 'Vezi rezervările pe axa stațiilor'
                           : 'Vezi diagrama clasică a locurilor'
                       }
                     >
-                      {seatViewMode === 'timeline' ? 'Timeline' : 'Diagramă'}
+                      Timeline
                     </button>
                     <button
                       type="button"
@@ -4267,7 +4292,7 @@ export default function ReservationPage({ userRole, user }) {
                       disabled={!isGridViewActive}
                       className={`px-3 py-1 rounded-full text-xs font-semibold border transition-colors ${
                         isWideView
-                          ? 'bg-blue-600 text-white border-blue-600'
+                          ? 'bg-gray-300 text-gray-900 border-gray-400'
                           : 'bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200'
                       } ${!isGridViewActive ? 'opacity-60 cursor-not-allowed' : ''}`}
                       title="Mărește lățimea locurilor din diagramă pentru a vedea toate detaliile"
@@ -4289,7 +4314,100 @@ export default function ReservationPage({ userRole, user }) {
                       </button>
                     )}
                   </div>
-                  <div className="inline-flex items-center gap-2 flex-wrap ml-auto">
+                  <div className="inline-flex items-center gap-2 flex-wrap ml-auto relative" ref={textSettingsRef}>
+                    <button
+                      type="button"
+                      onClick={() => setIsTextSettingsOpen((prev) => !prev)}
+                      className="px-3 py-1 rounded-full text-xs font-semibold border transition-colors bg-white text-gray-700 border-gray-300 hover:bg-gray-100"
+                      title="Personalizează textul afișat în casetele diagramei"
+                    >
+                      Text
+                    </button>
+                    {isTextSettingsOpen && (
+                      <div className="absolute top-full right-0 mt-2 w-64 bg-white border border-gray-200 rounded-lg shadow-lg p-3 z-30">
+                        <div className="text-xs font-semibold text-gray-900 mb-2">Setări text</div>
+                        <div className="space-y-2 text-xs text-gray-700">
+                          <label className="flex flex-col gap-1">
+                            <span className="font-semibold">Font</span>
+                            <select
+                              className="w-full rounded border-gray-300 text-sm focus:ring-gray-400 focus:border-gray-400"
+                              value={diagramTextStyle.fontFamily}
+                              onChange={(e) =>
+                                setDiagramTextStyle((prev) => ({ ...prev, fontFamily: e.target.value }))
+                              }
+                            >
+                              <option value="Inter, sans-serif">Inter</option>
+                              <option value="Roboto, sans-serif">Roboto</option>
+                              <option value="Montserrat, sans-serif">Montserrat</option>
+                              <option value="Georgia, serif">Georgia</option>
+                            </select>
+                          </label>
+                          <div className="flex gap-3">
+                            <label className="flex flex-col gap-1 flex-1">
+                              <span className="font-semibold">Mărime</span>
+                              <input
+                                type="number"
+                                min={8}
+                                max={18}
+                                className="w-full rounded border-gray-300 text-sm focus:ring-gray-400 focus:border-gray-400"
+                                value={diagramTextStyle.fontSize}
+                                onChange={(e) =>
+                                  setDiagramTextStyle((prev) => ({
+                                    ...prev,
+                                    fontSize: Number(e.target.value) || 10,
+                                  }))
+                                }
+                              />
+                            </label>
+                            <label className="flex flex-col gap-1 w-24">
+                              <span className="font-semibold">Culoare</span>
+                              <input
+                                type="color"
+                                className="w-full h-9 rounded border border-gray-300 p-1"
+                                value={diagramTextStyle.color}
+                                onChange={(e) =>
+                                  setDiagramTextStyle((prev) => ({ ...prev, color: e.target.value }))
+                                }
+                              />
+                            </label>
+                          </div>
+                          <div className="flex flex-col gap-1">
+                            <span className="font-semibold">Aliniere</span>
+                            <div className="flex gap-1">
+                              {[
+                                { value: 'left', label: 'Stânga' },
+                                { value: 'center', label: 'Centru' },
+                                { value: 'right', label: 'Dreapta' },
+                              ].map((option) => (
+                                <button
+                                  key={option.value}
+                                  type="button"
+                                  onClick={() =>
+                                    setDiagramTextStyle((prev) => ({ ...prev, textAlign: option.value }))
+                                  }
+                                  className={`flex-1 px-2 py-1 rounded border text-[11px] font-semibold transition-colors ${
+                                    diagramTextStyle.textAlign === option.value
+                                      ? 'bg-gray-200 border-gray-400 text-gray-900'
+                                      : 'bg-gray-50 border-gray-200 text-gray-700 hover:bg-gray-100'
+                                  }`}
+                                >
+                                  {option.label}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                          <div className="flex justify-end">
+                            <button
+                              type="button"
+                              onClick={() => setIsTextSettingsOpen(false)}
+                              className="px-3 py-1 rounded-full text-xs font-semibold border bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200"
+                            >
+                              Închide
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                     <label className="inline-flex items-center gap-2 text-xs font-semibold text-gray-700">
                       <input
                         type="checkbox"
@@ -4297,7 +4415,7 @@ export default function ReservationPage({ userRole, user }) {
                         checked={showSeatObservations}
                         onChange={(e) => setShowSeatObservations(e.target.checked)}
                       />
-                      Observații pe diagramă
+                      Obs.
                     </label>
                     <button
                       type="button"
@@ -4403,6 +4521,7 @@ export default function ReservationPage({ userRole, user }) {
                         isWideView={isWideView}
                         wideSeatSize={wideSeatSize}
                         showObservations={showSeatObservations}
+                        diagramTextStyle={diagramTextStyle}
                       />
                     </div>
                   </div>
