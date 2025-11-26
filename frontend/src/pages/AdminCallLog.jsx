@@ -12,6 +12,7 @@ export default function AdminCallLog() {
   const [entries, setEntries] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
   const [limit, setLimit] = useState(() => {
     const stored = Number(localStorage.getItem('adminCallLogLimit'));
     return Number.isFinite(stored) && stored > 0 ? stored : 100;
@@ -48,13 +49,33 @@ export default function AdminCallLog() {
 
   const emptyState = !loading && !entries.length && !error;
 
-  const rows = useMemo(() => entries.map((entry) => ({
-    id: entry.id,
-    date: formatDate(entry.received_at, 'DD.MM.YYYY'),
-    time: formatDate(entry.received_at, 'HH:mm:ss'),
-    phone: entry.phone || entry.digits || '—',
-    name: entry.caller_name || 'Nume neasociat',
-  })), [entries]);
+  const rows = useMemo(() => {
+    const query = searchTerm.trim().toLowerCase();
+
+    const filteredEntries = !query
+      ? entries
+      : entries.filter((entry) => {
+          const phoneValue = String(entry.phone || entry.digits || '').replace(/\D/g, '');
+          const nameValue = String(entry.caller_name || '').toLowerCase();
+          const normalizedQueryDigits = query.replace(/\D/g, '');
+          const hasDigitQuery = normalizedQueryDigits.length > 0;
+
+          const phoneMatches = hasDigitQuery
+            ? phoneValue.includes(normalizedQueryDigits)
+            : phoneValue.includes(query);
+          const nameMatches = nameValue.includes(query);
+
+          return phoneMatches || nameMatches;
+        });
+
+    return filteredEntries.map((entry) => ({
+      id: entry.id,
+      date: formatDate(entry.received_at, 'DD.MM.YYYY'),
+      time: formatDate(entry.received_at, 'HH:mm:ss'),
+      phone: entry.phone || entry.digits || '—',
+      name: entry.caller_name || 'Nume neasociat',
+    }));
+  }, [entries, searchTerm]);
 
   return (
     <div className="p-6 space-y-6">
@@ -67,6 +88,16 @@ export default function AdminCallLog() {
           </div>
         </div>
         <div className="ml-auto flex flex-wrap gap-3 items-center text-sm">
+          <div className="relative">
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(event) => setSearchTerm(event.target.value)}
+              placeholder="Caută după nume sau telefon"
+              className="w-64 rounded border border-gray-300 px-3 py-1.5 pr-9 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+            />
+            <span className="pointer-events-none absolute inset-y-0 right-2 flex items-center text-gray-400">🔍</span>
+          </div>
           <label className="text-gray-700 flex items-center gap-2">
             Afișează
             <select
