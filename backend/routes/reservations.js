@@ -910,14 +910,14 @@ router.post('/', async (req, res) => {
           version: newVersion,
           before: existingReservation
             ? {
-                person_id: existingReservation.person_id,
-                name: existingReservation.person_name || null,
-                phone: existingReservation.person_phone || null,
-                seat_id: existingReservation.seat_id,
-                board_station_id: existingReservation.board_station_id,
-                exit_station_id: existingReservation.exit_station_id,
-                observations: existingReservation.observations || null,
-              }
+              person_id: existingReservation.person_id,
+              name: existingReservation.person_name || null,
+              phone: existingReservation.person_phone || null,
+              seat_id: existingReservation.seat_id,
+              board_station_id: existingReservation.board_station_id,
+              exit_station_id: existingReservation.exit_station_id,
+              observations: existingReservation.observations || null,
+            }
             : null,
           after: {
             person_id,
@@ -1856,45 +1856,51 @@ router.get('/:id/details', requireAuth, async (req, res) => {
     // 3) plăți
     const { rows: payments } = await db.query(
       `
-      SELECT
-        id, amount, status, payment_method, transaction_id,
-        DATE_FORMAT(timestamp, '%d.%m.%Y %H:%i') AS ts,
-        collected_by,
-        e.name AS collected_by_name
-      FROM payments
-      LEFT JOIN employees e ON e.id = collected_by
-      WHERE reservation_id = ?
-      ORDER BY id DESC
+SELECT
+  payments.id AS payment_id,
+  payments.amount,
+  payments.status,
+  payments.payment_method,
+  payments.transaction_id,
+  DATE_FORMAT(payments.timestamp, '%d.%m.%Y %H:%i') AS ts,
+  payments.collected_by,
+  e.name AS collected_by_name
+FROM payments
+LEFT JOIN employees e ON e.id = payments.collected_by
+WHERE payments.reservation_id = ?
+ORDER BY payments.id DESC
+
       `,
       [id]
     );
 
-    // 4) timeline (evenimente) din audit_logs
-    const evRes = await db.query(
-      `
-      SELECT
-        id                        AS event_id,
-        DATE_FORMAT(created_at, '%d.%m.%Y %H:%i') AS at,
-        action,
-        actor_id,
-        e.name AS actor_name,
-        entity,
-        entity_id,
-        related_id,
-        channel,
-        amount,
-        payment_method,
-        transaction_id
-      FROM audit_logs
-      LEFT JOIN employees e ON e.id = actor_id
-      WHERE
-        (entity = 'reservation' AND entity_id = ?)
-        OR
-        (entity = 'payment'     AND related_id = ?)
-      ORDER BY created_at ASC, id ASC
-      `,
-      [id, id]
-    );
+// 4) timeline (evenimente) din audit_logs
+const evRes = await db.query(
+  `
+  SELECT
+    audit_logs.id                        AS event_id,
+    DATE_FORMAT(audit_logs.created_at, '%d.%m.%Y %H:%i') AS at,
+    audit_logs.action,
+    audit_logs.actor_id,
+    e.name AS actor_name,
+    audit_logs.entity,
+    audit_logs.entity_id,
+    audit_logs.related_id,
+    audit_logs.channel,
+    audit_logs.amount,
+    audit_logs.payment_method,
+    audit_logs.transaction_id
+  FROM audit_logs
+  LEFT JOIN employees e ON e.id = audit_logs.actor_id
+  WHERE
+    (audit_logs.entity = 'reservation' AND audit_logs.entity_id = ?)
+    OR
+    (audit_logs.entity = 'payment'     AND audit_logs.related_id = ?)
+  ORDER BY audit_logs.created_at ASC, audit_logs.id ASC
+  `,
+  [id, id]
+);
+
 
     res.json({
       reservation: info[0],
