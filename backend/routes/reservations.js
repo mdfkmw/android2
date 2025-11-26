@@ -1795,10 +1795,16 @@ router.get('/:id/details', requireAuth, async (req, res) => {
         r.observations,
         r.reservation_time,
         r.created_by,
+        e.name               AS created_by_name,
+
+        p.name               AS passenger_name,
 
         t.id                 AS trip_id,
         DATE_FORMAT(t.date, '%d.%m.%Y') AS trip_date,
         DATE_FORMAT(t.time, '%H:%i')    AS trip_time,
+
+        op.id                AS operator_id,
+        op.name              AS operator_name,
 
         ro.id                AS route_id,
         ro.name              AS route_name,
@@ -1812,8 +1818,12 @@ router.get('/:id/details', requireAuth, async (req, res) => {
         se.name              AS exit_name
       FROM reservations r
       JOIN trips   t  ON t.id  = r.trip_id
+      LEFT JOIN route_schedules rs ON rs.id = t.route_schedule_id
+      LEFT JOIN operators op       ON op.id = rs.operator_id
       JOIN routes  ro ON ro.id = t.route_id
       JOIN seats   s  ON s.id  = r.seat_id
+      LEFT JOIN people p   ON p.id  = r.person_id
+      LEFT JOIN employees e ON e.id = r.created_by
       LEFT JOIN stations sb ON sb.id = r.board_station_id
       LEFT JOIN stations se ON se.id = r.exit_station_id
       WHERE r.id = ?
@@ -1832,8 +1842,10 @@ router.get('/:id/details', requireAuth, async (req, res) => {
         rp.pricing_category_id,
         rp.booking_channel,
         rp.employee_id,
+        e.name AS employee_name,
         DATE_FORMAT(rp.created_at, '%d.%m.%Y %H:%i') AS created_at
       FROM reservation_pricing rp
+      LEFT JOIN employees e ON e.id = rp.employee_id
       WHERE rp.reservation_id = ?
       ORDER BY rp.created_at DESC
       LIMIT 1
@@ -1847,8 +1859,10 @@ router.get('/:id/details', requireAuth, async (req, res) => {
       SELECT
         id, amount, status, payment_method, transaction_id,
         DATE_FORMAT(timestamp, '%d.%m.%Y %H:%i') AS ts,
-        collected_by
+        collected_by,
+        e.name AS collected_by_name
       FROM payments
+      LEFT JOIN employees e ON e.id = collected_by
       WHERE reservation_id = ?
       ORDER BY id DESC
       `,
@@ -1863,6 +1877,7 @@ router.get('/:id/details', requireAuth, async (req, res) => {
         DATE_FORMAT(created_at, '%d.%m.%Y %H:%i') AS at,
         action,
         actor_id,
+        e.name AS actor_name,
         entity,
         entity_id,
         related_id,
@@ -1871,6 +1886,7 @@ router.get('/:id/details', requireAuth, async (req, res) => {
         payment_method,
         transaction_id
       FROM audit_logs
+      LEFT JOIN employees e ON e.id = actor_id
       WHERE
         (entity = 'reservation' AND entity_id = ?)
         OR
