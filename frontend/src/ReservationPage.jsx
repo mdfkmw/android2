@@ -4243,32 +4243,20 @@ export default function ReservationPage({ userRole, user }) {
                     <button
                       type="button"
                       onClick={() => {
-                        setSeatViewMode('grid');
-                        setIsTimelineModalOpen(false);
+                        setSeatViewMode((prevMode) => {
+                          const nextMode = prevMode === 'grid' ? 'timeline' : 'grid';
+                          setIsTimelineModalOpen(nextMode === 'timeline');
+                          return nextMode;
+                        });
                       }}
-                      className={`px-3 py-1 rounded-full text-xs font-semibold border transition-colors ${
-                        seatViewMode === 'grid'
-                          ? 'bg-blue-600 text-white border-blue-600'
-                          : 'bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200'
-                      }`}
-                      title="Vezi diagrama clasică a locurilor"
-                    >
-                      Diagramă
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setSeatViewMode('timeline');
-                        setIsTimelineModalOpen(true);
-                      }}
-                      className={`px-3 py-1 rounded-full text-xs font-semibold border transition-colors ${
+                      className="px-3 py-1 rounded-full text-xs font-semibold border transition-colors bg-blue-600 text-white border-blue-600"
+                      title={
                         seatViewMode === 'timeline'
-                          ? 'bg-blue-600 text-white border-blue-600'
-                          : 'bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200'
-                      }`}
-                      title="Vezi rezervările pe axa stațiilor"
+                          ? 'Vezi rezervările pe axa stațiilor'
+                          : 'Vezi diagrama clasică a locurilor'
+                      }
                     >
-                      Timeline
+                      {seatViewMode === 'timeline' ? 'Timeline' : 'Diagramă'}
                     </button>
                     <button
                       type="button"
@@ -4283,9 +4271,9 @@ export default function ReservationPage({ userRole, user }) {
                           : 'bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200'
                       } ${!isGridViewActive ? 'opacity-60 cursor-not-allowed' : ''}`}
                       title="Mărește lățimea locurilor din diagramă pentru a vedea toate detaliile"
-                      >
-                        Vedere largă
-                      </button>
+                    >
+                      {isWideView ? 'Vedere îngustă' : 'Vedere largă'}
+                    </button>
                     {isWideView && (
                       <button
                         type="button"
