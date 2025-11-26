@@ -27,6 +27,12 @@ const SeatMap = forwardRef(function SeatMap({
   isWideView = false,
   wideSeatSize = { width: 260, height: 150 },
   showObservations = false,
+  diagramTextStyle = {
+    fontFamily: 'Inter, sans-serif',
+    fontSize: 10,
+    color: '#f3f4f6',
+    textAlign: 'right',
+  },
 }, ref) {
 
 
@@ -49,6 +55,12 @@ const SeatMap = forwardRef(function SeatMap({
   const seatHeight = isWideView ? wideSeatSize?.height || 150 : 100;
   const maxCol = seats.length > 0 ? Math.max(...seats.map(s => s.seat_col || 1)) : 1;
   const maxRow = seats.length > 0 ? Math.max(...seats.map(s => s.row || 1)) : 1;
+  const observationStyle = {
+    fontFamily: diagramTextStyle?.fontFamily || 'Inter, sans-serif',
+    fontSize: `${diagramTextStyle?.fontSize || 10}px`,
+    color: diagramTextStyle?.color || '#f3f4f6',
+    textAlign: diagramTextStyle?.textAlign || 'right',
+  };
 
 
 
@@ -192,7 +204,10 @@ const SeatMap = forwardRef(function SeatMap({
                     <div>{p.phone}</div>
                     <div className="italic">{p.board_at} → {p.exit_at}</div>
                     {showObservations && p.observations && (
-                      <div className="mt-0.5 text-[10px] text-white/90 italic text-right whitespace-pre-line">
+                      <div
+                        className="mt-0.5 italic whitespace-pre-line"
+                        style={observationStyle}
+                      >
                         📝 {p.observations}
                       </div>
                     )}
